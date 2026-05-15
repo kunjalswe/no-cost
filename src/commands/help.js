@@ -21,7 +21,7 @@ module.exports = {
 
         // Admin
         if (hasAdmin) {
-            embed.addFields({ name: 'Admin Commands', value: '`/setup` - Configure the notification channel and platform filter' });
+            embed.addFields({ name: 'Admin Commands', value: '`/setup set` - Configure the notification channel and platform filter\n`/setup remove` - Remove this server\'s notification configuration' });
         }
 
         // Dev
