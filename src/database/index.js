@@ -24,9 +24,8 @@ const MIGRATIONS = [
         expires_at  INTEGER
     );`,
 
-    // v2 — add expires_at column (safe to re-run via IF NOT EXISTS workaround is not needed;
-    //       this migration only runs once thanks to the version table)
-    `ALTER TABLE posted_games ADD COLUMN expires_at INTEGER;`,
+    // v2 — add expires_at column (REDUNDANT: already included in v1 schema, keeping as no-op for versioning)
+    `-- Migration v2 is empty because expires_at was added to v1 initial schema`,
 
     // v3 — support separate channels for separate platforms
     `CREATE TABLE IF NOT EXISTS guild_settings_v3 (
