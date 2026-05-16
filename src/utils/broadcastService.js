@@ -60,8 +60,8 @@ class BroadcastService {
             };
             
             console.log('[Broadcast] Saving initial state...');
-            await this.saveState(this.state);
-            console.log('[Broadcast] Initial state saved.');
+            this.saveState(this.state);
+            console.log('[Broadcast] Background process initialized.');
 
             // Start the process in the background
             console.log('[Broadcast] Launching background process...');

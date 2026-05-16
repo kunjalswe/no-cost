@@ -46,7 +46,7 @@ module.exports = {
 
             if (!isAuthorized(interaction)) {
                 console.log('[/addgame] Unauthorized attempt.');
-                await logAudit(interaction.client, `🚫 Unauthorized /addgame attempt by **${interaction.user.tag}** (${interaction.user.id})`);
+                logAudit(interaction.client, `🚫 Unauthorized /addgame attempt by **${interaction.user.tag}** (${interaction.user.id})`);
                 return interaction.editReply('You do not have permission to use this command.');
             }
 
@@ -92,21 +92,19 @@ module.exports = {
                 [title, platform, description, url, image, expiresAt]
             );
 
-            console.log('[/addgame] Starting broadcast...');
-            // 4. Delegate Broadcast
-            const result = await broadcastService.startBroadcast(interaction.client, {
+            console.log('[/addgame] Sending final response...');
+            await interaction.editReply(`✅ Game saved and broadcast started!\nNotifications are being sent to servers in the background.`);
+            
+            console.log('[/addgame] Launching broadcast in background...');
+            // 4. Delegate Broadcast (We don't await this to ensure the interaction finishes instantly)
+            broadcastService.startBroadcast(interaction.client, {
                 title, platform, description, url, image_url: image, displayExpiry
+            }).catch(err => {
+                console.error('[Broadcast] Background startup error:', err);
             });
 
-            if (!result.success) {
-                console.log(`[/addgame] Broadcast failed to start: ${result.message}`);
-                return interaction.editReply(`❌ ${result.message}`);
-            }
-
-            console.log('[/addgame] Sending final response...');
-            await interaction.editReply(`✅ Game saved and broadcast started!\nSent to the background for processing.`);
-            await logAudit(interaction.client, `🆕 **${interaction.user.tag}** added a new game: **${title}** (${platform})`);
-            console.log('[/addgame] Task complete.');
+            logAudit(interaction.client, `🆕 **${interaction.user.tag}** added a new game: **${title}** (${platform})`);
+            console.log('[/addgame] Interaction handled.');
         } catch (error) {
             console.error('Error in /addgame:', error);
             if (interaction.deferred) {
