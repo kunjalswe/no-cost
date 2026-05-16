@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getDB } = require('../database');
 const { isAuthorized } = require('../utils/permissions');
+const redis = require('../utils/redisClient');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -69,6 +70,10 @@ module.exports = {
         // Delete the game
         try {
             await db.run(`DELETE FROM posted_games WHERE id = ?`, [gameId]);
+            
+            // Invalidate Embed Cache (Requirement 4)
+            const embedCacheKey = `embed:${game.id || game.title.replace(/\s+/g, '_')}:${game.platform}`;
+            await redis.del(embedCacheKey);
         } catch (error) {
             console.error('Error deleting game:', error);
             return interaction.editReply('❌ Failed to delete the game from the database.');

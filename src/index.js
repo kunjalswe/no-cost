@@ -3,6 +3,7 @@ const { Client, GatewayIntentBits, Collection, REST, Routes, ActivityType } = re
 const fs = require('fs');
 const path = require('path');
 const { initDB } = require('./database');
+const { startLocalRedis } = require('./utils/localRedisRunner');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -97,6 +98,26 @@ client.once('clientReady', async () => {
 (async () => {
     try {
         await initDB();
+        
+        // Auto-start in-memory Redis if configured or if connection to localhost fails
+        if (process.env.REDIS_URL && (process.env.REDIS_URL.includes('localhost') || process.env.REDIS_URL.includes('127.0.0.1'))) {
+            // We check if redisClient is already happy. 
+            // Since redisClient initializes on require, we might need to wait a bit or just try to start it.
+            // If it fails to connect, we'll spin up the memory server.
+            const redis = require('./utils/redisClient');
+            
+            // Wait a moment to see if it connects
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (!redis.isAvailable) {
+                console.log('[Redis] No external Redis server detected. Launching internal in-memory Redis...');
+                const memoryServer = await startLocalRedis();
+                if (memoryServer) {
+                    // Re-initialize the client with the new URL
+                    redis.init();
+                }
+            }
+        }
 
         if (process.env.DISCORD_TOKEN) {
             await client.login(process.env.DISCORD_TOKEN);

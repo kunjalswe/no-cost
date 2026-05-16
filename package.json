@@ -13,7 +13,10 @@
   "type": "commonjs",
   "dependencies": {
     "discord.js": "^14.26.4",
+    "docker": "^1.0.0",
     "dotenv": "^17.4.2",
+    "ioredis": "^5.10.1",
+    "redis-memory-server": "^0.16.1",
     "sqlite": "^5.1.1",
     "sqlite3": "^6.0.1"
   }

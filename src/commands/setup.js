@@ -12,6 +12,7 @@ const {
 } = require('discord.js');
 const { getDB } = require('../database');
 const { buildGameEmbed } = require('../utils/embedBuilder');
+const redis = require('../utils/redisClient');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -140,6 +141,10 @@ module.exports = {
                          channel_id = excluded.channel_id`,
                         [guildId, selectedChannel, selectedPlatform]
                     );
+                    
+                    // Invalidate Cache (Requirement 2)
+                    await redis.del(`guild:${guildId}`);
+                    await redis.del(`channel:${guildId}:${selectedChannel}`);
 
                     // --- Automatically send non-expired games to the new channel ---
                     const currentUnix = Math.floor(Date.now() / 1000);
@@ -200,6 +205,10 @@ module.exports = {
             else if (i.customId === 'setup_remove_all') {
                 try {
                     await db.run('DELETE FROM guild_settings WHERE guild_id = ?', [guildId]);
+                    
+                    // Invalidate Cache (Requirement 2)
+                    await redis.del(`guild:${guildId}`);
+                    
                     const updatedDash = await renderDashboard();
                     await i.update({ content: '🗑️ All configurations have been removed.', ...updatedDash });
                 } catch (error) {
