@@ -25,7 +25,7 @@ function buildGameEmbed({ title, description, platform, url, image_url, expiry, 
     }
 
     if (image_url) {
-        embed.setThumbnail(image_url);
+        embed.setImage(image_url);
     }
 
     return embed;
