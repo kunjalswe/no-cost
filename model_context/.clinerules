@@ -3,51 +3,47 @@
 This file provides context and guidelines for AI models working on the No-Cost Discord Bot codebase.
 
 ## 🚀 Project Overview
-**No-Cost Bot** is a locally hosted Discord bot designed to track and broadcast free game deals (Steam, Epic Games) to multiple servers. It uses a manual broadcast system where a developer can add games to a central database, which then pushes notifications to all configured guild channels.
+**No-Cost Bot** is a high-performance Discord bot designed to track and broadcast free game deals. It features a manual broadcast system with multi-tier Redis caching, background processing for high-volume delivery, and a robust migration system.
 
 ## 🛠️ Tech Stack
 - **Runtime**: Node.js (v16.14+)
 - **Library**: discord.js v14
-- **Database**: SQLite (via `sqlite` and `sqlite3` packages)
-- **Environment**: dotenv for configuration
+- **Database**: SQLite (Central source of truth)
+- **Cache**: Redis (via `ioredis`) for settings, channel validity, and embed serialization.
+- **Environment**: VPS-hardened with support for internal/remote Redis fallbacks.
 
 ## 📂 Project Structure
-- `src/index.js`: Entry point, client initialization, event/command loaders, and background cleanup job.
-- `src/commands/`: Individual slash command files. Each must export `data` (SlashCommandBuilder) and `execute`.
-- `src/database/`: SQLite connection logic and migration system (`index.js`).
-- `src/events/`: Discord.js event handlers.
-- `src/utils/`: Helper functions.
-  - `embedBuilder.js`: Standardized Discord embed creation.
-  - `permissions.js`: Authorization logic (primarily for developer-only commands).
-  - `timeParser.js`: Logic to convert human-readable strings to Unix timestamps.
+- `src/index.js`: Entry point. Initializes Redis (with fallbacks), SQLite, and Discord client.
+- `src/commands/`: Slash commands. Optimized for instant responses (background processing).
+- `src/database/`: SQLite logic and migration system (`PRAGMA busy_timeout = 5000` for concurrency).
+- `src/utils/`:
+  - `redisClient.js`: Singleton for cache management with automatic availability checks.
+  - `broadcastService.js`: The "Engine". Handles state persistence, rate-limiting, and cached delivery.
+  - `embedBuilder.js`: Modern, compact embed design with platform-specific branding.
+  - `permissions.js`: Role/ID based authorization.
+  - `localRedisRunner.js`: Automated in-memory Redis runner for local dev or simple VPS setups.
 
-## 📜 Coding Standards & Conventions
-- **Module System**: CommonJS (`require`/`module.exports`).
-- **Async/Await**: Preferred for all database and Discord API interactions.
-- **Variable Naming**: camelCase for variables/functions, PascalCase for classes/components, SCREAMING_SNAKE_CASE for constants.
-- **Discord.js Patterns**:
-  - Always use `interaction.reply()` or `interaction.editReply()` for commands.
-  - Use `interaction.deferReply()` for operations taking longer than 3 seconds (like broadcasting).
-  - Use `EmbedBuilder` and `ActionRowBuilder`/`ButtonBuilder` for UI elements.
-- **Database**:
-  - All database queries should use the singleton instance from `src/database/index.js`.
-  - Use parameterized queries to prevent SQL injection.
-  - Schema changes MUST be added to the `MIGRATIONS` array in `src/database/index.js` to ensure consistency across environments.
+## ⚡ Performance & Caching Patterns
+- **Layered Cache**:
+  - `guild:settings:{id}`: Cached for 60m (broadcast configs).
+  - `valid_channel:{id}`: Cached for 30m (prevents redundant `fetch` calls).
+  - `embed:{title}:{platform}`: Serialized embed data cached for 24h.
+- **Zero-Wait UI**: Commands like `/addgame` must respond *before* launching background tasks to ensure 0% "Application did not respond" errors.
+- **State Persistence**: Broadcast progress is saved to `broadcast_state.json` allowing resumption after crashes.
 
 ## 🎨 UI/UX Guidelines
-- **Colors**: Use the standardized `COLORS` object in `embedBuilder.js` (Steam: Blue, Epic: Purple, Both: Green).
-- **Timestamps**: Always use Discord's native relative timestamps (e.g., `<t:TIMESTAMP:R>`) for game expiries.
-- **Footers**: Standardized footer text is "No-Cost".
+- **Branding**: Use `Author` section for platform names/logos (Steam/Epic).
+- **Compact Layout**: Avoid blocky fields; prefer markdown-formatted descriptions for meta-data.
+- **Visuals**: Use `setImage` for large game art and `setThumbnail` for platform icons.
+- **Timestamps**: Always use native Discord relative timestamps `<t:TIMESTAMP:R>`.
 
-## 🔒 Security & Permissions
-- **Developer Commands**: Protected by `isAuthorized(user_id)` helper.
-- **Admin Commands**: Use `PermissionFlagsBits.ManageGuild` or similar Discord permissions in the command data.
-- **Environment**: Never hardcode tokens or sensitive IDs. Use `process.env`.
+## 🔄 Development Workflows
+1. **Migrations**: Add SQL to `MIGRATIONS` array in `src/database/index.js`.
+2. **Caching**: Use `redis.get/set` (JSON serialized). Always check `redis.isAvailable`.
+3. **Broadcasting**: Access via `broadcastService.startBroadcast()`.
+4. **Permissions**: Use `isAuthorized(interaction)` from `permissions.js`.
 
-## 🔄 Core Workflows
-1. **Adding a Command**: Create a new `.js` file in `src/commands/`. The command loader in `index.js` will automatically pick it up and register it globally on boot.
-2. **Adding an Event**: Create a new `.js` file in `src/events/`.
-3. **Database Migrations**: Add a new SQL string to the `MIGRATIONS` array in `src/database/index.js`.
-
-## 🧹 Maintenance
-- **Cleanup Job**: `index.js` runs a minute-by-minute interval to delete games from `posted_games` where `expires_at` is in the past.
+## 🔒 Security
+- **Input Safety**: Use lenient URL regex `^https?:\/\/\S+$` to prevent ReDoS hangs.
+- **Authorization**: Restrict administrative commands to authorized developers/roles.
+- **Env Integrity**: Use `DISABLE_LOCAL_REDIS=true` on production VPS.
