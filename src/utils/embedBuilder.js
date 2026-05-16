@@ -12,7 +12,7 @@ function buildGameEmbed({ title, description, platform, url, image_url, expiry }
         .setDescription(description || 'No description provided.')
         .setColor(COLORS[platform.toLowerCase()] || COLORS.both)
         .setTimestamp()
-        .setFooter({ text: 'No-Cost Deals Bot' });
+        .setFooter({ text: 'No-Cost' });
 
     embed.addFields({ name: 'Platform', value: platform.charAt(0).toUpperCase() + platform.slice(1), inline: true });
 

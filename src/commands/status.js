@@ -38,7 +38,7 @@ module.exports = {
                 { name: 'Last Posted Game', value: lastGame, inline: false }
             )
             .setTimestamp()
-            .setFooter({ text: 'No-Cost Deals Bot' });
+            .setFooter({ text: 'No-Cost' });
 
         await interaction.reply({ embeds: [embed] });
     },

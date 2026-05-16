@@ -18,7 +18,7 @@ module.exports = {
             )
             .setColor(0x3498db)
             .setTimestamp()
-            .setFooter({ text: 'No-Cost Deals Bot' });
+            .setFooter({ text: 'No-Cost' });
 
         await interaction.editReply({ embeds: [embed] });
     },

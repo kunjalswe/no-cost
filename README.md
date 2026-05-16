@@ -1,62 +1,126 @@
 # No-Cost Bot
 
-A locally hosted Discord bot designed to track and broadcast free game deals (Steam & Epic Games) to multiple servers. Built with Discord.js v14 and SQLite.
+> A locally hosted Discord bot that tracks and broadcasts **free game deals** from Steam & Epic Games to multiple servers simultaneously. Built with **Discord.js v14** and **SQLite**.
 
-## Prerequisites
-- Node.js (v16.14 or higher)
-- Discord Bot Token & Client ID (From the [Discord Developer Portal](https://discord.com/developers/applications))
+[![Invite Bot](https://img.shields.io/badge/Invite-No--Cost%20Bot-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1504853562801524856&scope=bot&permissions=137439266880)
+[![Support Server](https://img.shields.io/badge/Support-Discord%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/yarZZ5zeNP)
 
-## Local Installation
+---
 
-1. Install all required dependencies:
+## ✨ Features
+
+- 📢 **Multi-server broadcasting** — post one game, notify every configured server instantly
+- 🎮 **Platform filtering** — Steam, Epic Games, or both per server
+- ⏰ **Auto-expiry cleanup** — expired deals are pruned from the database automatically every minute
+- 🕒 **Native Discord timestamps** — relative countdown timers on every embed
+- 🔒 **Permission-gated commands** — separate tiers for public users, admins, and the developer
+
+---
+
+## 🔗 Links
+
+| | Link |
+|---|---|
+| **Invite Bot** | https://discord.com/oauth2/authorize?client_id=1504853562801524856&scope=bot&permissions=137439266880 |
+| **Support Server** | https://discord.gg/yarZZ5zeNP |
+
+---
+
+## 📋 Prerequisites
+
+- **Node.js** v16.14 or higher
+- A **Discord Bot Token** & **Client ID** from the [Discord Developer Portal](https://discord.com/developers/applications)
+
+---
+
+## 🚀 Local Installation
+
+1. **Install dependencies:**
 ```bash
 npm install
 ```
 
-2. Copy the `.env.example` file to `.env` and fill in your credentials:
+2. **Set up environment variables:**
 ```bash
 cp .env.example .env
 ```
-*(Open `.env` and paste your `DISCORD_TOKEN` and `CLIENT_ID`)*
+Open `.env` and fill in your `DISCORD_TOKEN` and `CLIENT_ID`.
 
-3. Start the bot!
+3. **Start the bot:**
 ```bash
 npm start
 ```
-*Note: The SQLite database (`data.db`) will be automatically generated upon the first successful boot.*
 
-## Production Deployment
+> The SQLite database (`data.db`) is generated automatically on first boot.
 
-It is highly recommended to use a process manager like **PM2** to keep the bot running 24/7 in the background on your VPS or host.
+---
 
-1. Install PM2 globally:
+## 🖥️ Production Deployment
+
+Use **PM2** to keep the bot running 24/7 on a VPS or server.
+
 ```bash
+# Install PM2 globally
 npm install -g pm2
-```
 
-2. Start the bot with PM2:
-```bash
+# Start the bot
 pm2 start src/index.js --name "nocost-bot"
-```
 
-3. Enable PM2 to start on server reboot:
-```bash
+# Enable auto-restart on reboot
 pm2 startup
 pm2 save
 ```
 
-### PM2 Helpful Commands:
-- View live console logs: `pm2 logs nocost-bot`
-- Stop the bot: `pm2 stop nocost-bot`
-- Restart the bot: `pm2 restart nocost-bot`
+### Useful PM2 Commands
 
-## Core Commands
+| Command | Description |
+|---|---|
+| `pm2 logs nocost-bot` | View live console output |
+| `pm2 stop nocost-bot` | Stop the bot |
+| `pm2 restart nocost-bot` | Restart the bot |
+| `pm2 status` | View all running processes |
 
-| Command | Permission | Description |
-|---|---|---|
-| `/setup` | Administrator | Configure the channel and preferred platform (Steam/Epic/Both) for notifications. |
-| `/addgame` | Developer ID Only | Broadcast a free game offer to all configured servers. Includes interactive 'Get Game' buttons and Discord countdown timestamps. |
-| `/free` | Public | List active non-expired free games. Filterable by platform. |
-| `/status` | Public | View bot uptime, ping, database connection status, and server count. |
-| `/ping` | Public | View current API and Websocket latency. |
-| `/help` | Public | Dynamic help menu displaying accessible commands. |
+---
+
+## 📖 Commands
+
+### Public
+
+| Command | Description |
+|---|---|
+| `/free` | List currently active free games (filterable by platform) |
+| `/ping` | Check bot API and WebSocket latency |
+| `/status` | View uptime, server count, and database status |
+| `/invite` | Get the bot invite link and support server link |
+| `/help` | Dynamic help menu showing commands based on your permissions |
+
+### Admin (Requires `Manage Guild` permission)
+
+| Command | Description |
+|---|---|
+| `/setup set` | Configure the notification channel and platform filter for this server |
+| `/setup remove` | Remove this server's notification configuration |
+
+### Developer (Authorized User Only)
+
+| Command | Description |
+|---|---|
+| `/addgame` | Broadcast a free game offer to all configured servers with a countdown and button |
+| `/removegame` | Remove a game from the database via autocomplete dropdown |
+
+---
+
+## 🗂️ Project Structure
+
+```
+no-cost/
+├── src/
+│   ├── commands/         # Slash command files
+│   ├── database/         # SQLite init & connection
+│   ├── events/           # Discord.js event handlers
+│   └── utils/            # Helpers (embeds, permissions, time parser)
+├── data.db               # SQLite database (auto-generated)
+├── .env                  # Environment variables (not committed)
+└── package.json
+```
+
