@@ -8,6 +8,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('help')
         .setDescription('Shows available commands for the No-Cost bot.'),
+
     async execute(interaction) {
         const hasAdmin = interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
         const isDev = isAuthorized(interaction);
@@ -17,15 +18,18 @@ module.exports = {
             .setDescription('Welcome to the No-Cost dashboard. Use the commands below to browse games or manage notifications.')
             .setColor(0x3498db)
             .setThumbnail(interaction.client.user.displayAvatarURL())
-            .setFooter({ text: 'No-Cost', iconURL: interaction.client.user.displayAvatarURL() });
+            .setFooter({ 
+                text: 'No-Cost', 
+                iconURL: interaction.client.user.displayAvatarURL() 
+            });
 
-        // Everyone
+        // Public commands
         embed.addFields({
             name: '📢 Public Commands',
             value: '`/free` - Browse active free games\n`/status` - Shows bot uptime and stats\n`/ping` - Check bot latency\n`/invite` - Get the bot invite & support server link\n`/help` - Shows this menu'
         });
 
-        // Admin
+        // Admin commands
         if (hasAdmin) {
             embed.addFields({
                 name: '🔧 Admin Commands',
@@ -33,7 +37,7 @@ module.exports = {
             });
         }
 
-        // Dev
+        // Developer commands
         if (isDev) {
             embed.addFields({
                 name: '⚙️ Developer Commands',
@@ -52,7 +56,9 @@ module.exports = {
                 .setURL(SUPPORT_URL)
         );
 
-        await interaction.reply({ embeds: [embed], components: [row], flags: [64] });
+        await interaction.reply({
+            embeds: [embed],
+            components: [row]
+        });
     },
 };
-
