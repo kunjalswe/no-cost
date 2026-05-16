@@ -41,14 +41,14 @@ module.exports = {
     },
 
     async execute(interaction) {
-        if (!isAuthorized(interaction.user.id)) {
+        if (!isAuthorized(interaction)) {
             return interaction.reply({
                 content: '❌ You do not have permission to use this command.',
-                ephemeral: true,
+                flags: [64], // MessageFlags.Ephemeral is bit 64
             });
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
 
         const gameId = interaction.options.getString('game');
         const db = getDB();

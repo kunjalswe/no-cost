@@ -10,7 +10,7 @@ module.exports = {
         .setDescription('Shows available commands for the No-Cost bot.'),
     async execute(interaction) {
         const hasAdmin = interaction.member.permissions.has(PermissionFlagsBits.ManageGuild);
-        const isDev = isAuthorized(interaction.user.id);
+        const isDev = isAuthorized(interaction);
 
         const embed = new EmbedBuilder()
             .setTitle('🚀 No-Cost | Information Hub')
@@ -53,7 +53,7 @@ module.exports = {
                 .setURL(SUPPORT_URL)
         );
 
-        await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+        await interaction.reply({ embeds: [embed], components: [row], flags: [64] });
     },
 };
 

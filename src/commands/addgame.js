@@ -43,7 +43,7 @@ module.exports = {
             await logAudit(interaction.client, `🚫 Unauthorized /addgame attempt by **${interaction.user.tag}** (${interaction.user.id})`);
             return interaction.reply({
                 content: 'You do not have permission to use this command.',
-                ephemeral: true
+                flags: [64]
             });
         }
 
@@ -55,13 +55,13 @@ module.exports = {
         const expiryStr = interaction.options.getString('expiry')?.trim();
 
         // 1. Validation
-        if (title.length < 2) return interaction.reply({ content: 'Title is too short.', ephemeral: true });
+        if (title.length < 2) return interaction.reply({ content: 'Title is too short.', flags: [64] });
         
         const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
-        if (url && !urlRegex.test(url)) return interaction.reply({ content: 'Invalid URL format.', ephemeral: true });
-        if (image && !urlRegex.test(image)) return interaction.reply({ content: 'Invalid Image URL format.', ephemeral: true });
+        if (url && !urlRegex.test(url)) return interaction.reply({ content: 'Invalid URL format.', flags: [64] });
+        if (image && !urlRegex.test(image)) return interaction.reply({ content: 'Invalid Image URL format.', flags: [64] });
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [64] });
 
         let expiresAt = null;
         let displayExpiry = expiryStr;

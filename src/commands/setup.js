@@ -60,7 +60,7 @@ module.exports = {
         };
 
         const initialDashboard = await renderDashboard();
-        const mainMessage = await interaction.reply({ ...initialDashboard, ephemeral: true });
+        const mainMessage = await interaction.reply({ ...initialDashboard, flags: [64] });
 
         // Main collector for the dashboard buttons
         const collector = mainMessage.createMessageComponentCollector({ 
@@ -74,7 +74,7 @@ module.exports = {
         collector.on('collect', async (i) => {
             // Re-verify permission just in case
             if (!i.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
-                return i.reply({ content: 'You do not have permission to use this.', ephemeral: true });
+                return i.reply({ content: 'You do not have permission to use this.', flags: [64] });
             }
 
             if (i.customId === 'setup_add') {
@@ -128,7 +128,7 @@ module.exports = {
             
             else if (i.customId === 'save_config') {
                 if (!selectedChannel || !selectedPlatform) {
-                    return i.reply({ content: '⚠️ Please select **both** a channel and a platform before saving.', ephemeral: true });
+                    return i.reply({ content: '⚠️ Please select **both** a channel and a platform before saving.', flags: [64] });
                 }
 
                 try {
@@ -186,7 +186,7 @@ module.exports = {
                     });
                 } catch (error) {
                     console.error('Error saving config:', error);
-                    await i.reply({ content: '❌ Failed to save configuration.', ephemeral: true });
+                    await i.reply({ content: '❌ Failed to save configuration.', flags: [64] });
                 }
             } 
             
@@ -202,7 +202,7 @@ module.exports = {
                     await i.update({ content: '🗑️ All configurations have been removed.', ...updatedDash });
                 } catch (error) {
                     console.error('Error removing configs:', error);
-                    await i.reply({ content: '❌ Failed to remove configurations.', ephemeral: true });
+                    await i.reply({ content: '❌ Failed to remove configurations.', flags: [64] });
                 }
             }
         });
