@@ -27,7 +27,9 @@ class RedisClient {
                     const delay = Math.min(times * 50, 2000);
                     return delay;
                 },
-                maxRetriesPerRequest: 3
+                maxRetriesPerRequest: 3,
+                commandTimeout: 5000, // Timeout after 5 seconds
+                connectTimeout: 10000 // Timeout after 10 seconds
             });
 
             this.client.on('error', (err) => {

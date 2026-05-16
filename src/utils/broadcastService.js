@@ -24,8 +24,12 @@ class BroadcastService {
         return null;
     }
 
-    saveState(state) {
-        fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+    async saveState(state) {
+        try {
+            await fs.promises.writeFile(STATE_FILE, JSON.stringify(state, null, 2));
+        } catch (e) {
+            console.error('Failed to save broadcast state:', e);
+        }
     }
 
     clearState() {
@@ -51,7 +55,7 @@ class BroadcastService {
                 failCount: 0,
                 startTime: Date.now()
             };
-            this.saveState(this.state);
+            await this.saveState(this.state);
 
             // Start the process in the background
             this.processBroadcast(client);
@@ -67,7 +71,7 @@ class BroadcastService {
         const db = getDB();
         
         try {
-            while (this.isBroadcasting) {
+            if (this.isBroadcasting) {
                 const { game } = this.state;
                 
                 // 1. Embed Cache (Requirement 4)
@@ -207,7 +211,7 @@ class BroadcastService {
                         this.state.lastGuildId = guild_id;
                     }
 
-                    this.saveState(this.state);
+                        await this.saveState(this.state);
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
 
