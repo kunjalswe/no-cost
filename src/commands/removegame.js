@@ -83,7 +83,7 @@ module.exports = {
                 { name: 'Game ID', value: String(game.id), inline: true },
             )
             .setTimestamp()
-            .setFooter({ text: `Removed by ${interaction.user.tag}` });
+            .setFooter({ text: `Removed by ${interaction.user.tag}`, iconURL: interaction.client.user.displayAvatarURL() });
 
         await interaction.editReply({ embeds: [embed] });
     },

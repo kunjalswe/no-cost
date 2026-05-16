@@ -18,7 +18,7 @@ module.exports = {
             )
             .setColor(0x3498db)
             .setTimestamp()
-            .setFooter({ text: 'No-Cost' });
+            .setFooter({ text: 'No-Cost', iconURL: interaction.client.user.displayAvatarURL() });
 
         await interaction.editReply({ embeds: [embed] });
     },

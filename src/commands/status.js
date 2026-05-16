@@ -38,7 +38,7 @@ module.exports = {
                 { name: 'Last Posted Game', value: lastGame, inline: false }
             )
             .setTimestamp()
-            .setFooter({ text: 'No-Cost' });
+            .setFooter({ text: 'No-Cost', iconURL: interaction.client.user.displayAvatarURL() });
 
         await interaction.reply({ embeds: [embed] });
     },

@@ -6,13 +6,13 @@ const COLORS = {
     both: 0x2ecc71  // Green
 };
 
-function buildGameEmbed({ title, description, platform, url, image_url, expiry }) {
+function buildGameEmbed({ title, description, platform, url, image_url, expiry, iconURL }) {
     const embed = new EmbedBuilder()
         .setTitle(title)
         .setDescription(description || 'No description provided.')
         .setColor(COLORS[platform.toLowerCase()] || COLORS.both)
         .setTimestamp()
-        .setFooter({ text: 'No-Cost' });
+        .setFooter({ text: 'No-Cost', iconURL });
 
     embed.addFields({ name: 'Platform', value: platform.charAt(0).toUpperCase() + platform.slice(1), inline: true });
 

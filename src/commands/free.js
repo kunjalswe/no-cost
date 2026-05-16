@@ -52,7 +52,8 @@ module.exports = {
                     platform: game.platform,
                     url: game.url,
                     image_url: game.image_url,
-                    expiry: displayExpiry
+                    expiry: displayExpiry,
+                    iconURL: interaction.client.user.displayAvatarURL()
                 });
             });
 

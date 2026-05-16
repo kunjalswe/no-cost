@@ -33,7 +33,8 @@ module.exports = {
                 .setDescription('Configure which channels receive free game notifications for each platform.')
                 .setColor(0x3498db)
                 .setThumbnail(interaction.guild.iconURL())
-                .setTimestamp();
+                .setTimestamp()
+                .setFooter({ text: 'No-Cost Configuration', iconURL: interaction.client.user.displayAvatarURL() });
 
             if (settings.length === 0) {
                 embed.addFields({ name: 'Status', value: 'No notification channels configured yet.' });
@@ -160,7 +161,8 @@ module.exports = {
                                     platform: game.platform, 
                                     url: game.url, 
                                     image_url: game.image_url, 
-                                    expiry: displayExpiry 
+                                    expiry: displayExpiry,
+                                    iconURL: interaction.client.user.displayAvatarURL()
                                 });
                                 
                                 const components = [];

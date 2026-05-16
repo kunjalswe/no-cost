@@ -67,7 +67,8 @@ class BroadcastService {
                 platform: game.platform, 
                 url: game.url, 
                 image_url: game.image_url, 
-                expiry: game.displayExpiry 
+                expiry: game.displayExpiry,
+                iconURL: client.user.displayAvatarURL()
             });
 
             const components = [];

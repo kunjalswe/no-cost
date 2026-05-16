@@ -18,7 +18,7 @@ module.exports = {
             .setColor(0x3498db)
             .setThumbnail(interaction.client.user.displayAvatarURL())
             .setTimestamp()
-            .setFooter({ text: 'No-Cost • Helping you save since 2024' });
+            .setFooter({ text: 'No-Cost • Helping you save since 2024', iconURL: interaction.client.user.displayAvatarURL() });
 
         // Everyone
         embed.addFields({
