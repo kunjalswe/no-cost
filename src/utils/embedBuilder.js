@@ -13,19 +13,22 @@ function buildGameEmbed({ title, description, platform, url, image_url, expiry, 
         both: iconURL
     };
 
+    const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+    const platformIcon = PLATFORM_ICONS[platform.toLowerCase()] || PLATFORM_ICONS.both;
+
+    let finalDescription = description || 'No description provided.';
+    finalDescription += `\n\n**Platform:** ${platformName}`;
+    if (expiry) {
+        finalDescription += `\n**Expiry:** ${expiry}`;
+    }
+
     const embed = new EmbedBuilder()
+        .setAuthor({ name: platformName, iconURL: platformIcon })
         .setTitle(title)
-        .setDescription(description || 'No description provided.')
+        .setDescription(finalDescription)
         .setColor(COLORS[platform.toLowerCase()] || COLORS.both)
-        .setThumbnail(PLATFORM_ICONS[platform.toLowerCase()] || PLATFORM_ICONS.both)
         .setTimestamp()
         .setFooter({ text: 'No-Cost', iconURL });
-
-    embed.addFields({ name: 'Platform', value: platform.charAt(0).toUpperCase() + platform.slice(1), inline: true });
-
-    if (expiry) {
-        embed.addFields({ name: 'Expiry', value: expiry, inline: true });
-    }
 
     if (url) {
         embed.setURL(url);
