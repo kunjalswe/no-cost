@@ -99,8 +99,8 @@ module.exports = {
                 return interaction.editReply(`❌ ${result.message}`);
             }
 
-            await logAudit(interaction.client, `🆕 **${interaction.user.tag}** added a new game: **${title}** (${platform})`);
             await interaction.editReply(`✅ Game saved and broadcast started!\nSent to the background for processing.`);
+            await logAudit(interaction.client, `🆕 **${interaction.user.tag}** added a new game: **${title}** (${platform})`);
         } catch (error) {
             console.error('Error in /addgame:', error);
             if (interaction.deferred) {
