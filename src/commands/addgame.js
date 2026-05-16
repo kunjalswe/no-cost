@@ -62,10 +62,16 @@ module.exports = {
             // 1. Validation
             if (title.length < 2) return interaction.editReply('Title is too short.');
             
-            // Safer URL regex to prevent ReDoS hangs
-            const urlRegex = /^https?:\/\/[^\s$.?#].[^\s]*$/i;
-            if (url && !urlRegex.test(url)) return interaction.editReply('Invalid URL format. Must start with http:// or https://');
-            if (image && !urlRegex.test(image)) return interaction.editReply('Invalid Image URL format. Must start with http:// or https://');
+            // Lenient URL regex to support complex proxy URLs
+            const urlRegex = /^https?:\/\/\S+$/i;
+            if (url && !urlRegex.test(url)) {
+                console.log(`[/addgame] URL validation failed for: ${url}`);
+                return interaction.editReply('Invalid URL format. Must start with http:// or https://');
+            }
+            if (image && !urlRegex.test(image)) {
+                console.log(`[/addgame] Image validation failed for: ${image}`);
+                return interaction.editReply('Invalid Image URL format. Must start with http:// or https://');
+            }
 
             console.log('[/addgame] Validation passed.');
 
