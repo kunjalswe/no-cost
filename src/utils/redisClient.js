@@ -7,12 +7,14 @@ class RedisClient {
         this.isAvailable = false;
         this.hasLoggedRefused = false;
         this.reconnectTimeout = 5000; // 5 seconds
-        this.init();
     }
 
     init() {
+        console.log('[Redis] Initializing client...');
         if (this.client) {
-            this.client.disconnect();
+            try {
+                this.client.disconnect();
+            } catch (e) {}
             this.client = null;
         }
 

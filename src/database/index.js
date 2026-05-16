@@ -65,6 +65,9 @@ async function initDB() {
         filename: path.join(__dirname, '../../data.db'),
         driver: sqlite3.Database
     });
+    
+    // Set a busy timeout of 5 seconds to prevent hanging if the DB is locked
+    await db.run('PRAGMA busy_timeout = 5000');
 
     await runMigrations();
 

@@ -3,7 +3,6 @@ const path = require('path');
 const { getDB } = require('../database');
 const { buildGameEmbed } = require('./embedBuilder');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const redis = require('./redisClient');
 
 const STATE_FILE = path.join(__dirname, '../../broadcast_state.json');
 
@@ -44,8 +43,12 @@ class BroadcastService {
     }
 
     async startBroadcast(client, gameData) {
+        console.log('[Broadcast] Starting broadcast sequence...');
         try {
-            if (this.isBroadcasting) return { success: false, message: 'A broadcast is already in progress.' };
+            if (this.isBroadcasting) {
+                console.log('[Broadcast] Already in progress.');
+                return { success: false, message: 'A broadcast is already in progress.' };
+            }
             
             this.isBroadcasting = true;
             this.state = {
@@ -55,9 +58,13 @@ class BroadcastService {
                 failCount: 0,
                 startTime: Date.now()
             };
+            
+            console.log('[Broadcast] Saving initial state...');
             await this.saveState(this.state);
+            console.log('[Broadcast] Initial state saved.');
 
             // Start the process in the background
+            console.log('[Broadcast] Launching background process...');
             this.processBroadcast(client);
             return { success: true, message: 'Broadcast started.' };
         } catch (error) {
@@ -75,6 +82,7 @@ class BroadcastService {
                 const { game } = this.state;
                 
                 // 1. Embed Cache (Requirement 4)
+                const redis = require('./redisClient');
                 const embedCacheKey = `embed:${game.id || game.title.replace(/\s+/g, '_')}:${game.platform}`;
                 let cachedEmbedData = await redis.get(embedCacheKey);
                 

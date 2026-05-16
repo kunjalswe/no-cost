@@ -98,25 +98,28 @@ client.once('clientReady', async () => {
     try {
         await initDB();
         
-        // Auto-start in-memory Redis if configured or if connection to localhost fails
-        // This is skipped if DISABLE_LOCAL_REDIS is set to true (useful for VPS)
-        if (process.env.DISABLE_LOCAL_REDIS !== 'true' && process.env.REDIS_URL && (process.env.REDIS_URL.includes('localhost') || process.env.REDIS_URL.includes('127.0.0.1'))) {
+        // Initialize Redis if configured
+        if (process.env.REDIS_URL) {
             try {
                 const redis = require('./utils/redisClient');
-                
-                // Wait a moment to see if it connects
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                
-                if (!redis.isAvailable) {
-                    console.log('[Redis] No external Redis server detected. Launching internal in-memory Redis...');
-                    const { startLocalRedis } = require('./utils/localRedisRunner');
-                    const memoryServer = await startLocalRedis();
-                    if (memoryServer) {
-                        redis.init();
+                redis.init();
+
+                // If it's a local address, we might need to auto-start a server
+                if (process.env.DISABLE_LOCAL_REDIS !== 'true' && (process.env.REDIS_URL.includes('localhost') || process.env.REDIS_URL.includes('127.0.0.1'))) {
+                    // Wait a moment to see if it connects
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    
+                    if (!redis.isAvailable) {
+                        console.log('[Redis] No external Redis server detected. Launching internal in-memory Redis...');
+                        const { startLocalRedis } = require('./utils/localRedisRunner');
+                        const memoryServer = await startLocalRedis();
+                        if (memoryServer) {
+                            redis.init();
+                        }
                     }
                 }
             } catch (err) {
-                console.error('[Redis] Error during local Redis auto-start check:', err.message);
+                console.error('[Redis] Error during Redis initialization:', err.message);
             }
         }
 
