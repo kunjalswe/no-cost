@@ -20,7 +20,6 @@ function buildGameEmbed({ title, description, platform, url, image_url, expiry, 
         .setAuthor({ name: `${platformName} Free Game`, iconURL: platformIcon })
         .setTitle(`🎁 ${title}`)
         .setColor(COLORS[platform.toLowerCase()] || COLORS.both)
-        .setTimestamp()
         .setFooter({ text: 'No-Cost Notification System', iconURL });
 
     let finalDescription = '';
@@ -31,7 +30,7 @@ function buildGameEmbed({ title, description, platform, url, image_url, expiry, 
     if (expiry) {
         finalDescription += `⌛ **Expires:** ${expiry}\n`;
     }
-    
+
     if (url) {
         finalDescription += `🔗 **Claim here:** [Click to open](${url})`;
         embed.setURL(url);

@@ -7,7 +7,7 @@ module.exports = {
         .setDescription('Shows the current status and statistics of the No-Cost bot.'),
     async execute(interaction) {
         const db = getDB();
-        
+
         let dbStatus = 'Online 🟢';
         let lastGame = 'None';
         let serverCount = interaction.client.guilds.cache.size;
@@ -37,7 +37,6 @@ module.exports = {
                 { name: 'Database', value: dbStatus, inline: true },
                 { name: 'Last Posted Game', value: lastGame, inline: false }
             )
-            .setTimestamp()
             .setFooter({ text: 'No-Cost', iconURL: interaction.client.user.displayAvatarURL() });
 
         await interaction.reply({ embeds: [embed] });

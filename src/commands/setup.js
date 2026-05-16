@@ -1,14 +1,14 @@
-const { 
-    SlashCommandBuilder, 
-    PermissionFlagsBits, 
-    ChannelType, 
-    EmbedBuilder, 
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    ChannelSelectMenuBuilder, 
-    StringSelectMenuBuilder, 
-    ComponentType 
+const {
+    SlashCommandBuilder,
+    PermissionFlagsBits,
+    ChannelType,
+    EmbedBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ChannelSelectMenuBuilder,
+    StringSelectMenuBuilder,
+    ComponentType
 } = require('discord.js');
 const { getDB } = require('../database');
 const { buildGameEmbed } = require('../utils/embedBuilder');
@@ -28,13 +28,12 @@ module.exports = {
         // Function to generate the main dashboard
         const renderDashboard = async () => {
             const settings = await db.all('SELECT * FROM guild_settings WHERE guild_id = ?', [guildId]);
-            
+
             const embed = new EmbedBuilder()
                 .setTitle('⚙️ Notification Setup Dashboard')
                 .setDescription('Configure which channels receive free game notifications for each platform.')
                 .setColor(0x3498db)
                 .setThumbnail(interaction.guild.iconURL())
-                .setTimestamp()
                 .setFooter({ text: 'No-Cost Configuration', iconURL: interaction.client.user.displayAvatarURL() });
 
             if (settings.length === 0) {
@@ -65,7 +64,7 @@ module.exports = {
         const mainMessage = await interaction.reply({ ...initialDashboard, flags: [64] });
 
         // Main collector for the dashboard buttons
-        const collector = mainMessage.createMessageComponentCollector({ 
+        const collector = mainMessage.createMessageComponentCollector({
             time: 300000 // 5 minutes
         });
 
@@ -116,18 +115,18 @@ module.exports = {
                     embeds: [],
                     components: [row1, row2, row3],
                 });
-            } 
-            
+            }
+
             else if (i.customId === 'select_channel') {
                 selectedChannel = i.values[0];
                 await i.deferUpdate();
-            } 
-            
+            }
+
             else if (i.customId === 'select_platform') {
                 selectedPlatform = i.values[0];
                 await i.deferUpdate();
-            } 
-            
+            }
+
             else if (i.customId === 'save_config') {
                 if (!selectedChannel || !selectedPlatform) {
                     return i.reply({ content: '⚠️ Please select **both** a channel and a platform before saving.', flags: [64] });
@@ -141,7 +140,7 @@ module.exports = {
                          channel_id = excluded.channel_id`,
                         [guildId, selectedChannel, selectedPlatform]
                     );
-                    
+
                     // Invalidate Cache (Requirement 2)
                     await redis.del(`guild:${guildId}`);
                     await redis.del(`channel:${guildId}:${selectedChannel}`);
@@ -160,16 +159,16 @@ module.exports = {
                         if (channel) {
                             for (const game of games) {
                                 const displayExpiry = game.expires_at ? `<t:${game.expires_at}:F> (<t:${game.expires_at}:R>)` : 'N/A';
-                                const embed = buildGameEmbed({ 
-                                    title: game.title, 
-                                    description: game.description, 
-                                    platform: game.platform, 
-                                    url: game.url, 
-                                    image_url: game.image_url, 
+                                const embed = buildGameEmbed({
+                                    title: game.title,
+                                    description: game.description,
+                                    platform: game.platform,
+                                    url: game.url,
+                                    image_url: game.image_url,
                                     expiry: displayExpiry,
                                     iconURL: interaction.client.user.displayAvatarURL()
                                 });
-                                
+
                                 const components = [];
                                 if (game.url) {
                                     const row = new ActionRowBuilder().addComponents(
@@ -187,28 +186,28 @@ module.exports = {
                     // -------------------------------------------------------------
 
                     const updatedDash = await renderDashboard();
-                    await i.update({ 
-                        content: `✅ Successfully configured **${selectedPlatform}** notifications for <#${selectedChannel}>!`, 
-                        ...updatedDash 
+                    await i.update({
+                        content: `✅ Successfully configured **${selectedPlatform}** notifications for <#${selectedChannel}>!`,
+                        ...updatedDash
                     });
                 } catch (error) {
                     console.error('Error saving config:', error);
                     await i.reply({ content: '❌ Failed to save configuration.', flags: [64] });
                 }
-            } 
-            
+            }
+
             else if (i.customId === 'back_to_dash') {
                 const dash = await renderDashboard();
                 await i.update(dash);
-            } 
-            
+            }
+
             else if (i.customId === 'setup_remove_all') {
                 try {
                     await db.run('DELETE FROM guild_settings WHERE guild_id = ?', [guildId]);
-                    
+
                     // Invalidate Cache (Requirement 2)
                     await redis.del(`guild:${guildId}`);
-                    
+
                     const updatedDash = await renderDashboard();
                     await i.update({ content: '🗑️ All configurations have been removed.', ...updatedDash });
                 } catch (error) {

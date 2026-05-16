@@ -70,7 +70,7 @@ module.exports = {
         // Delete the game
         try {
             await db.run(`DELETE FROM posted_games WHERE id = ?`, [gameId]);
-            
+
             // Invalidate Embed Cache (Requirement 4)
             const embedCacheKey = `embed:${game.id || game.title.replace(/\s+/g, '_')}:${game.platform}`;
             await redis.del(embedCacheKey);
@@ -87,7 +87,6 @@ module.exports = {
                 { name: 'Platform', value: game.platform, inline: true },
                 { name: 'Game ID', value: String(game.id), inline: true },
             )
-            .setTimestamp()
             .setFooter({ text: `Removed by ${interaction.user.tag}`, iconURL: interaction.client.user.displayAvatarURL() });
 
         await interaction.editReply({ embeds: [embed] });

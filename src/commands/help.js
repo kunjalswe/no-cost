@@ -17,7 +17,6 @@ module.exports = {
             .setDescription('Welcome to the No-Cost dashboard. Use the commands below to browse games or manage notifications.')
             .setColor(0x3498db)
             .setThumbnail(interaction.client.user.displayAvatarURL())
-            .setTimestamp()
             .setFooter({ text: 'No-Cost', iconURL: interaction.client.user.displayAvatarURL() });
 
         // Everyone

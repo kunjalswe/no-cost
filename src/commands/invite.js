@@ -19,8 +19,7 @@ module.exports = {
                 '> ⏰ Automatic expiry cleanup\n\n' +
                 'Need help? Join our **Support Server** and we\'ll get you sorted.'
             )
-            .setFooter({ text: 'No-Cost', iconURL: interaction.client.user.displayAvatarURL() })
-            .setTimestamp();
+            .setFooter({ text: 'No-Cost', iconURL: interaction.client.user.displayAvatarURL() });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()

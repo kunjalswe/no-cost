@@ -6,10 +6,10 @@ module.exports = {
         .setDescription('Replies with the bot\'s current latency.'),
     async execute(interaction) {
         const sent = await interaction.deferReply({ fetchReply: true });
-        
+
         const roundTripLatency = sent.createdTimestamp - interaction.createdTimestamp;
         const websocketLatency = interaction.client.ws.ping;
-        
+
         // Measure Redis Latency
         const redis = require('../utils/redisClient');
         let redisLatency = 'Disconnected';
@@ -31,7 +31,6 @@ module.exports = {
                 { name: 'Redis Latency', value: redisLatency, inline: true }
             )
             .setColor(0x3498db)
-            .setTimestamp()
             .setFooter({ text: 'No-Cost', iconURL: interaction.client.user.displayAvatarURL() });
 
         await interaction.editReply({ embeds: [embed] });
