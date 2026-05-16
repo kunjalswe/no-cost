@@ -23,8 +23,10 @@ module.exports = {
             return;
         }
 
+        console.log(`[Interaction] Executing command: ${interaction.commandName}`);
         try {
             await command.execute(interaction);
+            console.log(`[Interaction] Command ${interaction.commandName} finished.`);
         } catch (error) {
             console.error(error);
             if (interaction.replied || interaction.deferred) {
