@@ -1,99 +1,218 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { 
+    SlashCommandBuilder, 
+    PermissionFlagsBits, 
+    ChannelType, 
+    EmbedBuilder, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    ChannelSelectMenuBuilder, 
+    StringSelectMenuBuilder, 
+    ComponentType 
+} = require('discord.js');
 const { getDB } = require('../database');
+const { buildGameEmbed } = require('../utils/embedBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('setup')
-        .setDescription('Configure or remove No-Cost notification settings for this server.')
+        .setDescription('Manage No-Cost notification settings via an interactive GUI.')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-        .setDMPermission(false)
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('set')
-                .setDescription('Set the channel and platform filter for free game notifications.')
-                .addChannelOption(option =>
-                    option.setName('channel')
-                        .setDescription('The channel to send free game notifications to')
-                        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
-                        .setRequired(true))
-                .addStringOption(option =>
-                    option.setName('platform')
-                        .setDescription('Which platform deals to receive')
-                        .setRequired(true)
-                        .addChoices(
-                            { name: 'Both (Steam & Epic)', value: 'both' },
-                            { name: 'Epic Games Only', value: 'epic' },
-                            { name: 'Steam Only', value: 'steam' }
-                        )))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('remove')
-                .setDescription('Remove this server\'s notification configuration.')),
+        .setDMPermission(false),
 
     async execute(interaction) {
-        const subcommand = interaction.options.getSubcommand();
-        const guildId = interaction.guild.id;
         const db = getDB();
+        const guildId = interaction.guild.id;
 
-        // ── /setup set ─────────────────────────────────────────────────────────
-        if (subcommand === 'set') {
-            const channel = interaction.options.getChannel('channel');
-            const platform = interaction.options.getString('platform');
+        // Function to generate the main dashboard
+        const renderDashboard = async () => {
+            const settings = await db.all('SELECT * FROM guild_settings WHERE guild_id = ?', [guildId]);
+            
+            const embed = new EmbedBuilder()
+                .setTitle('⚙️ Notification Setup Dashboard')
+                .setDescription('Configure which channels receive free game notifications for each platform.')
+                .setColor(0x3498db)
+                .setThumbnail(interaction.guild.iconURL())
+                .setTimestamp();
 
-            try {
-                await db.run(
-                    `INSERT INTO guild_settings (guild_id, channel_id, platform)
-                     VALUES (?, ?, ?)
-                     ON CONFLICT(guild_id) DO UPDATE SET
-                     channel_id = excluded.channel_id,
-                     platform   = excluded.platform`,
-                    [guildId, channel.id, platform]
-                );
-
-                await interaction.reply({
-                    content: `✅ Configuration saved! **${platform}** notifications will be sent to <#${channel.id}>.`,
-                    ephemeral: true,
-                });
-            } catch (error) {
-                console.error('Error in /setup set:', error);
-                await interaction.reply({
-                    content: '❌ There was an error saving the configuration. Please try again.',
-                    ephemeral: true,
-                });
+            if (settings.length === 0) {
+                embed.addFields({ name: 'Status', value: 'No notification channels configured yet.' });
+            } else {
+                const settingsList = settings.map(s => `• **${s.platform.toUpperCase()}**: <#${s.channel_id}>`).join('\n');
+                embed.addFields({ name: 'Current Settings', value: settingsList });
             }
-        }
 
-        // ── /setup remove ──────────────────────────────────────────────────────
-        if (subcommand === 'remove') {
-            try {
-                const existing = await db.get(
-                    'SELECT guild_id FROM guild_settings WHERE guild_id = ?',
-                    [guildId]
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('setup_add')
+                    .setLabel('Add/Edit Platform')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('➕'),
+                new ButtonBuilder()
+                    .setCustomId('setup_remove_all')
+                    .setLabel('Remove All')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🗑️')
+                    .setDisabled(settings.length === 0)
+            );
+
+            return { content: null, embeds: [embed], components: [row] };
+        };
+
+        const initialDashboard = await renderDashboard();
+        const mainMessage = await interaction.reply({ ...initialDashboard, ephemeral: true });
+
+        // Main collector for the dashboard buttons
+        const collector = mainMessage.createMessageComponentCollector({ 
+            time: 300000 // 5 minutes
+        });
+
+        // State for the configuration flow
+        let selectedChannel = null;
+        let selectedPlatform = null;
+
+        collector.on('collect', async (i) => {
+            // Re-verify permission just in case
+            if (!i.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
+                return i.reply({ content: 'You do not have permission to use this.', ephemeral: true });
+            }
+
+            if (i.customId === 'setup_add') {
+                selectedChannel = null;
+                selectedPlatform = null;
+
+                const channelSelect = new ChannelSelectMenuBuilder()
+                    .setCustomId('select_channel')
+                    .setPlaceholder('1. Choose a notification channel')
+                    .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement);
+
+                const platformSelect = new StringSelectMenuBuilder()
+                    .setCustomId('select_platform')
+                    .setPlaceholder('2. Choose a platform')
+                    .addOptions([
+                        { label: 'Both (Steam & Epic)', value: 'both', emoji: '🎮', description: 'Receive all free game notifications' },
+                        { label: 'Steam Only', value: 'steam', emoji: '💨', description: 'Only Steam notifications' },
+                        { label: 'Epic Games Only', value: 'epic', emoji: '🎁', description: 'Only Epic Games notifications' },
+                    ]);
+
+                const row1 = new ActionRowBuilder().addComponents(channelSelect);
+                const row2 = new ActionRowBuilder().addComponents(platformSelect);
+                const row3 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('save_config')
+                        .setLabel('Save Configuration')
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('✅'),
+                    new ButtonBuilder()
+                        .setCustomId('back_to_dash')
+                        .setLabel('Cancel')
+                        .setStyle(ButtonStyle.Secondary)
                 );
 
-                if (!existing) {
-                    return interaction.reply({
-                        content: '⚠️ This server has no saved configuration to remove.',
-                        ephemeral: true,
-                    });
+                await i.update({
+                    content: '### 🛠️ Add or Edit Platform Configuration\nPlease select a channel and a platform below.',
+                    embeds: [],
+                    components: [row1, row2, row3],
+                });
+            } 
+            
+            else if (i.customId === 'select_channel') {
+                selectedChannel = i.values[0];
+                await i.deferUpdate();
+            } 
+            
+            else if (i.customId === 'select_platform') {
+                selectedPlatform = i.values[0];
+                await i.deferUpdate();
+            } 
+            
+            else if (i.customId === 'save_config') {
+                if (!selectedChannel || !selectedPlatform) {
+                    return i.reply({ content: '⚠️ Please select **both** a channel and a platform before saving.', ephemeral: true });
                 }
 
-                await db.run(
-                    'DELETE FROM guild_settings WHERE guild_id = ?',
-                    [guildId]
-                );
+                try {
+                    await db.run(
+                        `INSERT INTO guild_settings (guild_id, channel_id, platform)
+                         VALUES (?, ?, ?)
+                         ON CONFLICT(guild_id, platform) DO UPDATE SET
+                         channel_id = excluded.channel_id`,
+                        [guildId, selectedChannel, selectedPlatform]
+                    );
 
-                await interaction.reply({
-                    content: '🗑️ Configuration removed. This server will no longer receive free game notifications.',
-                    ephemeral: true,
-                });
-            } catch (error) {
-                console.error('Error in /setup remove:', error);
-                await interaction.reply({
-                    content: '❌ There was an error removing the configuration. Please try again.',
-                    ephemeral: true,
-                });
+                    // --- Automatically send non-expired games to the new channel ---
+                    const currentUnix = Math.floor(Date.now() / 1000);
+                    const games = await db.all(
+                        `SELECT * FROM posted_games 
+                         WHERE (expires_at IS NULL OR expires_at > ?) 
+                         AND (platform = ? OR platform = 'both' OR ? = 'both')`,
+                        [currentUnix, selectedPlatform, selectedPlatform]
+                    );
+
+                    if (games.length > 0) {
+                        const channel = interaction.guild.channels.cache.get(selectedChannel);
+                        if (channel) {
+                            for (const game of games) {
+                                const displayExpiry = game.expires_at ? `<t:${game.expires_at}:F> (<t:${game.expires_at}:R>)` : 'N/A';
+                                const embed = buildGameEmbed({ 
+                                    title: game.title, 
+                                    description: game.description, 
+                                    platform: game.platform, 
+                                    url: game.url, 
+                                    image_url: game.image_url, 
+                                    expiry: displayExpiry 
+                                });
+                                
+                                const components = [];
+                                if (game.url) {
+                                    const row = new ActionRowBuilder().addComponents(
+                                        new ButtonBuilder()
+                                            .setLabel('Get Game')
+                                            .setStyle(ButtonStyle.Link)
+                                            .setURL(game.url)
+                                    );
+                                    components.push(row);
+                                }
+                                await channel.send({ embeds: [embed], components }).catch(console.error);
+                            }
+                        }
+                    }
+                    // -------------------------------------------------------------
+
+                    const updatedDash = await renderDashboard();
+                    await i.update({ 
+                        content: `✅ Successfully configured **${selectedPlatform}** notifications for <#${selectedChannel}>!`, 
+                        ...updatedDash 
+                    });
+                } catch (error) {
+                    console.error('Error saving config:', error);
+                    await i.reply({ content: '❌ Failed to save configuration.', ephemeral: true });
+                }
+            } 
+            
+            else if (i.customId === 'back_to_dash') {
+                const dash = await renderDashboard();
+                await i.update(dash);
+            } 
+            
+            else if (i.customId === 'setup_remove_all') {
+                try {
+                    await db.run('DELETE FROM guild_settings WHERE guild_id = ?', [guildId]);
+                    const updatedDash = await renderDashboard();
+                    await i.update({ content: '🗑️ All configurations have been removed.', ...updatedDash });
+                } catch (error) {
+                    console.error('Error removing configs:', error);
+                    await i.reply({ content: '❌ Failed to remove configurations.', ephemeral: true });
+                }
             }
-        }
+        });
+
+        collector.on('end', async () => {
+            try {
+                await interaction.editReply({ components: [] });
+            } catch (e) {
+                // Ignore if message was deleted
+            }
+        });
     },
 };

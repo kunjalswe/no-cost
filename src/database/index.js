@@ -27,6 +27,19 @@ const MIGRATIONS = [
     // v2 — add expires_at column (safe to re-run via IF NOT EXISTS workaround is not needed;
     //       this migration only runs once thanks to the version table)
     `ALTER TABLE posted_games ADD COLUMN expires_at INTEGER;`,
+
+    // v3 — support separate channels for separate platforms
+    `CREATE TABLE IF NOT EXISTS guild_settings_v3 (
+        guild_id   TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        platform   TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (guild_id, platform)
+    );
+    INSERT OR IGNORE INTO guild_settings_v3 (guild_id, channel_id, platform, created_at)
+    SELECT guild_id, channel_id, platform, created_at FROM guild_settings;
+    DROP TABLE guild_settings;
+    ALTER TABLE guild_settings_v3 RENAME TO guild_settings;`,
 ];
 
 async function runMigrations() {

@@ -102,6 +102,7 @@ module.exports = {
         let successCount = 0;
         let failCount = 0;
 
+        const sentChannels = new Set();
         const batchSize = 10;
         for (let i = 0; i < settings.length; i += batchSize) {
             const batch = settings.slice(i, i + batchSize);
@@ -109,6 +110,11 @@ module.exports = {
             await Promise.all(batch.map(async (setting) => {
                 if (setting.platform !== 'both' && platform !== 'both' && setting.platform !== platform) {
                     return; 
+                }
+
+                // Prevent sending duplicate messages to the same channel
+                if (sentChannels.has(setting.channel_id)) {
+                    return;
                 }
 
                 try {
@@ -119,9 +125,10 @@ module.exports = {
                     if (!channel) return;
 
                     await channel.send({ embeds: [embed], components });
+                    sentChannels.add(setting.channel_id);
                     successCount++;
                 } catch (error) {
-                    console.error(`Failed to send to guild ${setting.guild_id}:`, error);
+                    console.error(`Failed to send to channel ${setting.channel_id} in guild ${setting.guild_id}:`, error);
                     failCount++;
                 }
             }));
