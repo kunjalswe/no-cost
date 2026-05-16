@@ -10,7 +10,9 @@
 ## ✨ Features
 
 - 📢 **Multi-server broadcasting** — post one game, notify every configured server instantly
-- 🎮 **Platform filtering** — Steam, Epic Games, or both per server
+- 🎮 **Platform-specific channels** — configure separate channels for Steam and Epic deals (e.g., #steam-deals and #epic-deals)
+- ⚙️ **Interactive Dashboard** — manage settings via a modern GUI with buttons and select menus
+- 🔄 **Auto Catch-up** — new servers get current active deals immediately after setup
 - ⏰ **Auto-expiry cleanup** — expired deals are pruned from the database automatically every minute
 - 🕒 **Native Discord timestamps** — relative countdown timers on every embed
 - 🔒 **Permission-gated commands** — separate tiers for public users, admins, and the developer
@@ -98,8 +100,7 @@ pm2 save
 
 | Command | Description |
 |---|---|
-| `/setup set` | Configure the notification channel and platform filter for this server |
-| `/setup remove` | Remove this server's notification configuration |
+| `/setup` | Open the interactive dashboard to manage notification channels and platform filters |
 
 ### Developer (Authorized User Only)
 
