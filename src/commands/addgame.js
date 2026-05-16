@@ -107,6 +107,12 @@ module.exports = {
             await interaction.editReply(`✅ Game saved and broadcast started!\nNotifications are being sent to servers in the background.`);
             
             console.log('[/addgame] Launching broadcast in background...');
+            
+            // Invalidate embed cache to ensure fresh data (especially useful for testing)
+            const redis = require('../utils/redisClient');
+            const embedCacheKey = `embed:${title.replace(/\s+/g, '_')}:${platform}`;
+            await redis.del(embedCacheKey);
+
             // 4. Delegate Broadcast (We don't await this to ensure the interaction finishes instantly)
             broadcastService.startBroadcast(interaction.client, {
                 title, platform, description, url, image_url: image, displayExpiry
