@@ -13,11 +13,12 @@ module.exports = {
         const isDev = isAuthorized(interaction.user.id);
 
         const embed = new EmbedBuilder()
-            .setTitle('No-Cost Bot — Help Menu')
-            .setDescription('Here are the available commands based on your permissions:')
+            .setTitle('🚀 No-Cost | Information Hub')
+            .setDescription('Welcome to the No-Cost dashboard. Use the commands below to browse games or manage notifications.')
             .setColor(0x3498db)
+            .setThumbnail(interaction.client.user.displayAvatarURL())
             .setTimestamp()
-            .setFooter({ text: 'No-Cost' });
+            .setFooter({ text: 'No-Cost • Helping you save since 2024' });
 
         // Everyone
         embed.addFields({
@@ -29,7 +30,7 @@ module.exports = {
         if (hasAdmin) {
             embed.addFields({
                 name: '🔧 Admin Commands',
-                value: '`/setup set` - Configure the notification channel and platform filter\n`/setup remove` - Remove this server\'s notification configuration'
+                value: '`/setup` - Open the interactive notification setup dashboard\nManage platforms, channels, and removal in one place.'
             });
         }
 
