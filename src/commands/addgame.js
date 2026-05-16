@@ -39,68 +39,74 @@ module.exports = {
                 .setDescription('When the offer expires')
                 .setRequired(false)),
     async execute(interaction) {
-        if (!isAuthorized(interaction)) {
-            await logAudit(interaction.client, `🚫 Unauthorized /addgame attempt by **${interaction.user.tag}** (${interaction.user.id})`);
-            return interaction.reply({
-                content: 'You do not have permission to use this command.',
-                flags: [64]
-            });
-        }
-
-        const title = interaction.options.getString('title').trim();
-        const platform = interaction.options.getString('platform');
-        const description = interaction.options.getString('description')?.trim();
-        const url = interaction.options.getString('url')?.trim();
-        const image = interaction.options.getString('image')?.trim();
-        const expiryStr = interaction.options.getString('expiry')?.trim();
-
-        // 1. Validation
-        if (title.length < 2) return interaction.reply({ content: 'Title is too short.', flags: [64] });
-        
-        const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
-        if (url && !urlRegex.test(url)) return interaction.reply({ content: 'Invalid URL format.', flags: [64] });
-        if (image && !urlRegex.test(image)) return interaction.reply({ content: 'Invalid Image URL format.', flags: [64] });
-
-        await interaction.deferReply({ flags: [64] });
-
-        let expiresAt = null;
-        let displayExpiry = expiryStr;
-        if (expiryStr) {
-            expiresAt = getFutureUnixTimestamp(expiryStr);
-            if (expiresAt) {
-                displayExpiry = `<t:${expiresAt}:F> (<t:${expiresAt}:R>)`;
-            }
-        }
-
-        const db = getDB();
-
-        // 2. Idempotency Check
-        if (url) {
-            const existing = await db.get('SELECT id FROM posted_games WHERE url = ? AND title = ?', [url, title]);
-            if (existing) {
-                return interaction.editReply('⚠️ This game has already been posted.');
-            }
-        }
-
-        // 3. Save to database
+        console.log(`[/addgame] Received request from ${interaction.user.tag}`);
         try {
+            await interaction.deferReply({ flags: [64] });
+            console.log('[/addgame] Reply deferred.');
+
+            if (!isAuthorized(interaction)) {
+                console.log('[/addgame] Unauthorized attempt.');
+                await logAudit(interaction.client, `🚫 Unauthorized /addgame attempt by **${interaction.user.tag}** (${interaction.user.id})`);
+                return interaction.editReply('You do not have permission to use this command.');
+            }
+
+            const title = interaction.options.getString('title').trim();
+            const platform = interaction.options.getString('platform');
+            const description = interaction.options.getString('description')?.trim();
+            const url = interaction.options.getString('url')?.trim();
+            const image = interaction.options.getString('image')?.trim();
+            const expiryStr = interaction.options.getString('expiry')?.trim();
+
+            console.log(`[/addgame] Processing: ${title} (${platform})`);
+
+            // 1. Validation
+            if (title.length < 2) return interaction.editReply('Title is too short.');
+            
+            const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
+            if (url && !urlRegex.test(url)) return interaction.editReply('Invalid URL format.');
+            if (image && !urlRegex.test(image)) return interaction.editReply('Invalid Image URL format.');
+
+            let expiresAt = null;
+            let displayExpiry = expiryStr;
+            if (expiryStr) {
+                expiresAt = getFutureUnixTimestamp(expiryStr);
+                if (expiresAt) {
+                    displayExpiry = `<t:${expiresAt}:F> (<t:${expiresAt}:R>)`;
+                }
+            }
+
+            const db = getDB();
+
+            // 2. Idempotency Check
+            if (url) {
+                const existing = await db.get('SELECT id FROM posted_games WHERE url = ? AND title = ?', [url, title]);
+                if (existing) {
+                    return interaction.editReply('⚠️ This game has already been posted.');
+                }
+            }
+
+            console.log('[/addgame] Saving to DB...');
             await db.run(
                 `INSERT INTO posted_games (title, platform, description, url, image_url, expires_at)
                  VALUES (?, ?, ?, ?, ?, ?)`,
                 [title, platform, description, url, image, expiresAt]
             );
 
+            console.log('[/addgame] Starting broadcast...');
             // 4. Delegate Broadcast
             const result = await broadcastService.startBroadcast(interaction.client, {
                 title, platform, description, url, image_url: image, displayExpiry
             });
 
             if (!result.success) {
+                console.log(`[/addgame] Broadcast failed to start: ${result.message}`);
                 return interaction.editReply(`❌ ${result.message}`);
             }
 
+            console.log('[/addgame] Sending final response...');
             await interaction.editReply(`✅ Game saved and broadcast started!\nSent to the background for processing.`);
             await logAudit(interaction.client, `🆕 **${interaction.user.tag}** added a new game: **${title}** (${platform})`);
+            console.log('[/addgame] Task complete.');
         } catch (error) {
             console.error('Error in /addgame:', error);
             if (interaction.deferred) {
