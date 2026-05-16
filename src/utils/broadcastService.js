@@ -40,21 +40,27 @@ class BroadcastService {
     }
 
     async startBroadcast(client, gameData) {
-        if (this.isBroadcasting) return { success: false, message: 'A broadcast is already in progress.' };
-        
-        this.isBroadcasting = true;
-        this.state = {
-            game: gameData,
-            lastGuildId: null,
-            successCount: 0,
-            failCount: 0,
-            startTime: Date.now()
-        };
-        this.saveState(this.state);
+        try {
+            if (this.isBroadcasting) return { success: false, message: 'A broadcast is already in progress.' };
+            
+            this.isBroadcasting = true;
+            this.state = {
+                game: gameData,
+                lastGuildId: null,
+                successCount: 0,
+                failCount: 0,
+                startTime: Date.now()
+            };
+            this.saveState(this.state);
 
-        // Start the process in the background
-        this.processBroadcast(client);
-        return { success: true, message: 'Broadcast started.' };
+            // Start the process in the background
+            this.processBroadcast(client);
+            return { success: true, message: 'Broadcast started.' };
+        } catch (error) {
+            console.error('Error starting broadcast:', error);
+            this.isBroadcasting = false;
+            return { success: false, message: `Failed to start broadcast: ${error.message}` };
+        }
     }
 
     async processBroadcast(client) {

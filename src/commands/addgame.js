@@ -89,21 +89,25 @@ module.exports = {
                  VALUES (?, ?, ?, ?, ?, ?)`,
                 [title, platform, description, url, image, expiresAt]
             );
+
+            // 4. Delegate Broadcast
+            const result = await broadcastService.startBroadcast(interaction.client, {
+                title, platform, description, url, image_url: image, displayExpiry
+            });
+
+            if (!result.success) {
+                return interaction.editReply(`❌ ${result.message}`);
+            }
+
+            await logAudit(interaction.client, `🆕 **${interaction.user.tag}** added a new game: **${title}** (${platform})`);
+            await interaction.editReply(`✅ Game saved and broadcast started!\nSent to the background for processing.`);
         } catch (error) {
-            console.error('Error saving game:', error);
-            return interaction.editReply('Failed to save the game to the database.');
+            console.error('Error in /addgame:', error);
+            if (interaction.deferred) {
+                await interaction.editReply(`❌ An error occurred while processing the command: ${error.message}`);
+            } else {
+                await interaction.reply({ content: `❌ An error occurred: ${error.message}`, flags: [64] });
+            }
         }
-
-        // 4. Delegate Broadcast
-        const result = await broadcastService.startBroadcast(interaction.client, {
-            title, platform, description, url, image_url: image, displayExpiry
-        });
-
-        if (!result.success) {
-            return interaction.editReply(`❌ ${result.message}`);
-        }
-
-        await logAudit(interaction.client, `🆕 **${interaction.user.tag}** added a new game: **${title}** (${platform})`);
-        await interaction.editReply(`✅ Game saved and broadcast started!\nSent to the background for processing.`);
     },
 };
