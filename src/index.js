@@ -42,9 +42,9 @@ client.once('clientReady', async () => {
     console.log(`Ready! Logged in as ${client.user.tag}`);
 
     const updatePresence = () => {
-        client.user.setActivity(`(${client.guilds.cache.size}) Servers - ADD BOT NOW!`, { type: ActivityType.Watching });
+        client.user.setActivity(`/help - ${client.guilds.cache.size} Servers`, { type: ActivityType.Watching });
     };
-    
+
     updatePresence();
     client.on('guildCreate', updatePresence);
     client.on('guildDelete', updatePresence);
