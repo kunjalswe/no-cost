@@ -62,9 +62,12 @@ module.exports = {
             // 1. Validation
             if (title.length < 2) return interaction.editReply('Title is too short.');
             
-            const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
-            if (url && !urlRegex.test(url)) return interaction.editReply('Invalid URL format.');
-            if (image && !urlRegex.test(image)) return interaction.editReply('Invalid Image URL format.');
+            // Safer URL regex to prevent ReDoS hangs
+            const urlRegex = /^https?:\/\/[^\s$.?#].[^\s]*$/i;
+            if (url && !urlRegex.test(url)) return interaction.editReply('Invalid URL format. Must start with http:// or https://');
+            if (image && !urlRegex.test(image)) return interaction.editReply('Invalid Image URL format. Must start with http:// or https://');
+
+            console.log('[/addgame] Validation passed.');
 
             let expiresAt = null;
             let displayExpiry = expiryStr;
@@ -75,10 +78,12 @@ module.exports = {
                 }
             }
 
+            console.log('[/addgame] Accessing DB...');
             const db = getDB();
 
             // 2. Idempotency Check
             if (url) {
+                console.log('[/addgame] Checking idempotency...');
                 const existing = await db.get('SELECT id FROM posted_games WHERE url = ? AND title = ?', [url, title]);
                 if (existing) {
                     return interaction.editReply('⚠️ This game has already been posted.');
