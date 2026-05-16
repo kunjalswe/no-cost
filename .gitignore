@@ -54,3 +54,4 @@ eagle.epf
 node_modules/
 .env
 data.db
+broadcast_state.json
