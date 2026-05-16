@@ -3,7 +3,6 @@ const { Client, GatewayIntentBits, Collection, REST, Routes, ActivityType } = re
 const fs = require('fs');
 const path = require('path');
 const { initDB } = require('./database');
-const { startLocalRedis } = require('./utils/localRedisRunner');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -110,6 +109,7 @@ client.once('clientReady', async () => {
                 
                 if (!redis.isAvailable) {
                     console.log('[Redis] No external Redis server detected. Launching internal in-memory Redis...');
+                    const { startLocalRedis } = require('./utils/localRedisRunner');
                     const memoryServer = await startLocalRedis();
                     if (memoryServer) {
                         redis.init();
