@@ -49,6 +49,26 @@ client.once('clientReady', async () => {
     client.on('guildCreate', updatePresence);
     client.on('guildDelete', updatePresence);
 
+    // 1. Run initial cleanup on startup (Fixes: Cleanup race condition)
+    const runCleanup = async () => {
+        try {
+            const db = require('./database').getDB();
+            const currentUnix = Math.floor(Date.now() / 1000);
+            const result = await db.run('DELETE FROM posted_games WHERE expires_at IS NOT NULL AND expires_at < ?', [currentUnix]);
+            if (result.changes && result.changes > 0) {
+                console.log(`[Cleanup] Deleted ${result.changes} expired game(s) from the database.`);
+            }
+        } catch (error) {
+            console.error('Error cleaning up expired games:', error);
+        }
+    };
+
+    await runCleanup();
+
+    // 2. Resume any pending broadcast (Fixes: No crash recovery)
+    const broadcastService = require('./utils/broadcastService');
+    broadcastService.resumeIfPending(client);
+
     // Refresh presence every 10 seconds to prevent it from disappearing
     setInterval(updatePresence, 10 * 1000);
 
@@ -69,19 +89,8 @@ client.once('clientReady', async () => {
         console.log('Skipping slash command registration because DISCORD_TOKEN or CLIENT_ID is missing.');
     }
 
-    // Setup automatic cleanup of expired games
-    setInterval(async () => {
-        try {
-            const db = require('./database').getDB();
-            const currentUnix = Math.floor(Date.now() / 1000);
-            const result = await db.run('DELETE FROM posted_games WHERE expires_at IS NOT NULL AND expires_at < ?', [currentUnix]);
-            if (result.changes && result.changes > 0) {
-                console.log(`[Cleanup] Deleted ${result.changes} expired game(s) from the database.`);
-            }
-        } catch (error) {
-            console.error('Error cleaning up expired games:', error);
-        }
-    }, 60 * 1000); // Check every minute
+    // Setup automatic cleanup of expired games interval
+    setInterval(runCleanup, 60 * 1000); // Check every minute
 });
 
 // Initialize DB and login

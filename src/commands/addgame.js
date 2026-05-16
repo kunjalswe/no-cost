@@ -1,8 +1,9 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const { getDB } = require('../database');
-const { buildGameEmbed } = require('../utils/embedBuilder');
 const { isAuthorized } = require('../utils/permissions');
 const { getFutureUnixTimestamp } = require('../utils/timeParser');
+const broadcastService = require('../utils/broadcastService');
+const { logAudit } = require('../utils/logger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -38,21 +39,29 @@ module.exports = {
                 .setDescription('When the offer expires')
                 .setRequired(false)),
     async execute(interaction) {
-        if (!isAuthorized(interaction.user.id)) {
+        if (!isAuthorized(interaction)) {
+            await logAudit(interaction.client, `🚫 Unauthorized /addgame attempt by **${interaction.user.tag}** (${interaction.user.id})`);
             return interaction.reply({
                 content: 'You do not have permission to use this command.',
                 ephemeral: true
             });
         }
 
-        await interaction.deferReply({ ephemeral: true });
-
-        const title = interaction.options.getString('title');
+        const title = interaction.options.getString('title').trim();
         const platform = interaction.options.getString('platform');
-        const description = interaction.options.getString('description');
-        const url = interaction.options.getString('url');
-        const image = interaction.options.getString('image');
-        const expiryStr = interaction.options.getString('expiry');
+        const description = interaction.options.getString('description')?.trim();
+        const url = interaction.options.getString('url')?.trim();
+        const image = interaction.options.getString('image')?.trim();
+        const expiryStr = interaction.options.getString('expiry')?.trim();
+
+        // 1. Validation
+        if (title.length < 2) return interaction.reply({ content: 'Title is too short.', ephemeral: true });
+        
+        const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
+        if (url && !urlRegex.test(url)) return interaction.reply({ content: 'Invalid URL format.', ephemeral: true });
+        if (image && !urlRegex.test(image)) return interaction.reply({ content: 'Invalid Image URL format.', ephemeral: true });
+
+        await interaction.deferReply({ ephemeral: true });
 
         let expiresAt = null;
         let displayExpiry = expiryStr;
@@ -65,7 +74,15 @@ module.exports = {
 
         const db = getDB();
 
-        // 1. Save to database
+        // 2. Idempotency Check
+        if (url) {
+            const existing = await db.get('SELECT id FROM posted_games WHERE url = ? AND title = ?', [url, title]);
+            if (existing) {
+                return interaction.editReply('⚠️ This game has already been posted.');
+            }
+        }
+
+        // 3. Save to database
         try {
             await db.run(
                 `INSERT INTO posted_games (title, platform, description, url, image_url, expires_at)
@@ -77,66 +94,16 @@ module.exports = {
             return interaction.editReply('Failed to save the game to the database.');
         }
 
-        // 2. Broadcast
-        const embed = buildGameEmbed({ title, description, platform, url, image_url: image, expiry: displayExpiry });
-        
-        const components = [];
-        if (url) {
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setLabel('Get Game')
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(url)
-            );
-            components.push(row);
-        }
-        
-        let settings;
-        try {
-            settings = await db.all('SELECT * FROM guild_settings');
-        } catch (error) {
-            console.error('Error fetching settings:', error);
-            return interaction.editReply('Failed to fetch guild settings.');
-        }
-        
-        let successCount = 0;
-        let failCount = 0;
+        // 4. Delegate Broadcast
+        const result = await broadcastService.startBroadcast(interaction.client, {
+            title, platform, description, url, image_url: image, displayExpiry
+        });
 
-        const sentChannels = new Set();
-        const batchSize = 10;
-        for (let i = 0; i < settings.length; i += batchSize) {
-            const batch = settings.slice(i, i + batchSize);
-            
-            await Promise.all(batch.map(async (setting) => {
-                if (setting.platform !== 'both' && platform !== 'both' && setting.platform !== platform) {
-                    return; 
-                }
-
-                // Prevent sending duplicate messages to the same channel
-                if (sentChannels.has(setting.channel_id)) {
-                    return;
-                }
-
-                try {
-                    const guild = interaction.client.guilds.cache.get(setting.guild_id);
-                    if (!guild) return;
-
-                    const channel = guild.channels.cache.get(setting.channel_id);
-                    if (!channel) return;
-
-                    await channel.send({ embeds: [embed], components });
-                    sentChannels.add(setting.channel_id);
-                    successCount++;
-                } catch (error) {
-                    console.error(`Failed to send to channel ${setting.channel_id} in guild ${setting.guild_id}:`, error);
-                    failCount++;
-                }
-            }));
-            
-            // Ratelimit delay between batches
-            await new Promise(resolve => setTimeout(resolve, 500));
+        if (!result.success) {
+            return interaction.editReply(`❌ ${result.message}`);
         }
 
-        await interaction.editReply(`Game broadcasted successfully!\nSent to: **${successCount}** servers.\nFailed: **${failCount}** servers.`);
+        await logAudit(interaction.client, `🆕 **${interaction.user.tag}** added a new game: **${title}** (${platform})`);
+        await interaction.editReply(`✅ Game saved and broadcast started!\nSent to the background for processing.`);
     },
 };
