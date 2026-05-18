@@ -3,6 +3,7 @@ const { Client, GatewayIntentBits, Collection, REST, Routes, ActivityType } = re
 const fs = require('fs');
 const path = require('path');
 const { initDB } = require('./database');
+const topgg = require('./utils/topgg');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -45,9 +46,20 @@ client.once('clientReady', async () => {
         client.user.setActivity(`/help - ${client.guilds.cache.size} Servers`, { type: ActivityType.Watching });
     };
 
+    const syncTopggStats = (force = false) => {
+        topgg.postStats(client.guilds.cache.size, { force });
+    };
+
     updatePresence();
-    client.on('guildCreate', updatePresence);
-    client.on('guildDelete', updatePresence);
+    syncTopggStats(true);
+    client.on('guildCreate', () => {
+        updatePresence();
+        syncTopggStats();
+    });
+    client.on('guildDelete', () => {
+        updatePresence();
+        syncTopggStats();
+    });
 
     // 1. Run initial cleanup on startup (Fixes: Cleanup race condition)
     const runCleanup = async () => {
@@ -71,6 +83,9 @@ client.once('clientReady', async () => {
 
     // Refresh presence every 10 seconds to prevent it from disappearing
     setInterval(updatePresence, 10 * 1000);
+
+    // Sync server count to Top.gg every 30 minutes
+    setInterval(() => syncTopggStats(true), 30 * 60 * 1000);
 
     // Register commands globally
     if (process.env.DISCORD_TOKEN && process.env.CLIENT_ID) {

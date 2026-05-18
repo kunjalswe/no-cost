@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getDB } = require('../database');
+const topgg = require('../utils/topgg');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -28,12 +29,21 @@ module.exports = {
         const minutes = Math.floor(uptime / 60) % 60;
         const uptimeStr = `${days}d ${hours}h ${minutes}m`;
 
+        let topggServers = '—';
+        if (topgg.isConfigured()) {
+            const stats = await topgg.getStats();
+            if (stats?.server_count != null) {
+                topggServers = `${stats.server_count.toLocaleString()}`;
+            }
+        }
+
         const embed = new EmbedBuilder()
             .setTitle('Bot Status')
             .setColor(0x3498db)
             .addFields(
                 { name: 'Uptime', value: uptimeStr, inline: true },
                 { name: 'Servers', value: `${serverCount}`, inline: true },
+                { name: 'Top.gg Servers', value: topggServers, inline: true },
                 { name: 'Database', value: dbStatus, inline: true },
                 { name: 'Last Posted Game', value: lastGame, inline: false }
             )
