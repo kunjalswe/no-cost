@@ -46,6 +46,16 @@ const MIGRATIONS = [
         ping_role_id TEXT NOT NULL,
         updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`,
+
+    // v5 — per-platform ping role on guild_settings
+    `ALTER TABLE guild_settings ADD COLUMN ping_role_id TEXT;
+    UPDATE guild_settings
+    SET ping_role_id = (
+        SELECT ping_role_id FROM guild_ping_roles
+        WHERE guild_ping_roles.guild_id = guild_settings.guild_id
+    )
+    WHERE guild_id IN (SELECT guild_id FROM guild_ping_roles);
+    DROP TABLE IF EXISTS guild_ping_roles;`,
 ];
 
 async function runMigrations() {

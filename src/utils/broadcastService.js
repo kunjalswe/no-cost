@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { getDB } = require('../database');
 const { buildGameEmbed } = require('./embedBuilder');
-const { getPingRoleId, formatPingContent, pingAllowedMentions } = require('./guildSettings');
+const { settingMatchesGame } = require('./guildSettings');
+const { sendChannelMessage } = require('./rateLimiter');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const STATE_FILE = path.join(__dirname, '../../broadcast_state.json');
@@ -117,8 +118,9 @@ class BroadcastService {
                 }
 
                 let hasMore = true;
-                const BATCH_SIZE = 50;
-                const sentGuildsInThisBroadcast = new Set();
+                const BATCH_SIZE = 25;
+                const BATCH_PAUSE_MS = 2000;
+                const sentChannelsInThisBroadcast = new Set();
 
                 while (hasMore) {
                     // Fetch guild IDs in batches to minimize DB load (Requirement 2)
@@ -146,34 +148,21 @@ class BroadcastService {
                     }
 
                     for (const { guild_id } of idBatch) {
-                        // Duplicate prevention
-                        if (sentGuildsInThisBroadcast.has(guild_id)) {
-                            this.state.lastGuildId = guild_id;
-                            continue;
-                        }
-
                         try {
                             // 2. Guild Settings Cache (Requirement 2)
                             const guildCacheKey = `guild:${guild_id}`;
-                            let cachedGuild = await redis.get(guildCacheKey);
-                            let guildConfigs;
-                            let pingRoleId;
+                            let guildConfigs = await redis.get(guildCacheKey);
 
-                            if (cachedGuild) {
+                            if (guildConfigs) {
                                 console.log(`[Redis] Guild settings HIT for ${guild_id}`);
-                                if (Array.isArray(cachedGuild)) {
-                                    guildConfigs = cachedGuild;
-                                    pingRoleId = await getPingRoleId(db, guild_id);
-                                } else {
-                                    guildConfigs = cachedGuild.configs;
-                                    pingRoleId = cachedGuild.pingRoleId ?? await getPingRoleId(db, guild_id);
+                                if (!Array.isArray(guildConfigs)) {
+                                    guildConfigs = guildConfigs.configs;
                                 }
                             } else {
                                 console.log(`[Redis] Guild settings MISS for ${guild_id}. Fetching from DB...`);
                                 guildConfigs = await db.all('SELECT * FROM guild_settings WHERE guild_id = ?', [guild_id]);
-                                pingRoleId = await getPingRoleId(db, guild_id);
                                 if (guildConfigs && guildConfigs.length > 0) {
-                                    await redis.set(guildCacheKey, { configs: guildConfigs, pingRoleId }, 3600);
+                                    await redis.set(guildCacheKey, guildConfigs, 3600);
                                 }
                             }
 
@@ -182,10 +171,21 @@ class BroadcastService {
                                 continue;
                             }
 
+                            const guild = client.guilds.cache.get(guild_id)
+                                || await client.guilds.fetch(guild_id).catch(() => null);
+                            if (!guild) {
+                                this.state.lastGuildId = guild_id;
+                                continue;
+                            }
+
                             for (const setting of guildConfigs) {
-                                // Platform filter
-                                if (setting.platform !== 'both' && game.platform !== 'both' && setting.platform !== game.platform) {
-                                    continue; 
+                                if (!settingMatchesGame(setting.platform, game.platform)) {
+                                    continue;
+                                }
+
+                                const deliveryKey = `${guild_id}:${setting.channel_id}`;
+                                if (sentChannelsInThisBroadcast.has(deliveryKey)) {
+                                    continue;
                                 }
 
                                 // 3. Channel Resolution Cache (Requirement 3)
@@ -197,11 +197,9 @@ class BroadcastService {
                                     // Cache miss or unknown state
                                     console.log(`[Redis] Channel cache MISS for ${setting.channel_id}`);
                                     try {
-                                        const guild = client.guilds.cache.get(guild_id) || await client.guilds.fetch(guild_id).catch(() => null);
-                                        if (guild) {
-                                            channel = guild.channels.cache.get(setting.channel_id) || await guild.channels.fetch(setting.channel_id).catch(() => null);
-                                        }
-                                        
+                                        channel = guild.channels.cache.get(setting.channel_id)
+                                            || await guild.channels.fetch(setting.channel_id).catch(() => null);
+
                                         if (channel && channel.isTextBased()) {
                                             // Cache minimal metadata or just true to indicate validity
                                             await redis.set(channelCacheKey, { id: channel.id, valid: true }, 1800); // 30 min TTL
@@ -219,24 +217,22 @@ class BroadcastService {
 
                                 if (!channel) continue;
 
-                                await channel.send({
-                                    content: formatPingContent(pingRoleId),
-                                    embeds: [embed],
-                                    components,
-                                    allowedMentions: pingAllowedMentions(pingRoleId),
-                                });
+                                await sendChannelMessage(channel, { embeds: [embed], components });
                                 this.state.successCount++;
-                                sentGuildsInThisBroadcast.add(guild_id);
+                                sentChannelsInThisBroadcast.add(deliveryKey);
                             }
                         } catch (error) {
+                            if (error?.status === 429 || error?.code === 429) {
+                                console.warn(`[Broadcast] Rate limited on guild ${guild_id}, will retry on resume`);
+                            }
                             this.state.failCount++;
                         }
 
                         this.state.lastGuildId = guild_id;
                     }
 
-                        await this.saveState(this.state);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await this.saveState(this.state);
+                    await new Promise((resolve) => setTimeout(resolve, BATCH_PAUSE_MS));
                 }
 
                 hasMore = false;
