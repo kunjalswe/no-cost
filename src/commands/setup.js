@@ -8,10 +8,12 @@ const {
     ButtonStyle,
     ChannelSelectMenuBuilder,
     StringSelectMenuBuilder,
+    RoleSelectMenuBuilder,
     ComponentType
 } = require('discord.js');
 const { getDB } = require('../database');
 const { buildGameEmbed } = require('../utils/embedBuilder');
+const { getPingRoleId, formatPingContent, pingAllowedMentions } = require('../utils/guildSettings');
 const redis = require('../utils/redisClient');
 
 module.exports = {
@@ -28,6 +30,7 @@ module.exports = {
         // Function to generate the main dashboard
         const renderDashboard = async () => {
             const settings = await db.all('SELECT * FROM guild_settings WHERE guild_id = ?', [guildId]);
+            const pingRoleId = await getPingRoleId(db, guildId);
 
             const embed = new EmbedBuilder()
                 .setTitle('⚙️ Notification Setup Dashboard')
@@ -36,11 +39,16 @@ module.exports = {
                 .setThumbnail(interaction.guild.iconURL())
                 .setFooter({ text: 'No-Cost Configuration', iconURL: interaction.client.user.displayAvatarURL() });
 
+            embed.addFields({
+                name: '🔔 Ping Role',
+                value: pingRoleId ? `<@&${pingRoleId}>` : 'Not set — use **Ping Role** to choose who gets mentioned.',
+            });
+
             if (settings.length === 0) {
-                embed.addFields({ name: 'Status', value: 'No notification channels configured yet.' });
+                embed.addFields({ name: 'Channels', value: 'No notification channels configured yet.' });
             } else {
                 const settingsList = settings.map(s => `• **${s.platform.toUpperCase()}**: <#${s.channel_id}>`).join('\n');
-                embed.addFields({ name: 'Current Settings', value: settingsList });
+                embed.addFields({ name: 'Channels', value: settingsList });
             }
 
             const row = new ActionRowBuilder().addComponents(
@@ -50,11 +58,16 @@ module.exports = {
                     .setStyle(ButtonStyle.Primary)
                     .setEmoji('➕'),
                 new ButtonBuilder()
+                    .setCustomId('setup_ping_role')
+                    .setLabel('Ping Role')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('🔔'),
+                new ButtonBuilder()
                     .setCustomId('setup_remove_all')
                     .setLabel('Remove All')
                     .setStyle(ButtonStyle.Danger)
                     .setEmoji('🗑️')
-                    .setDisabled(settings.length === 0)
+                    .setDisabled(settings.length === 0 && !pingRoleId)
             );
 
             return { content: null, embeds: [embed], components: [row] };
@@ -78,7 +91,79 @@ module.exports = {
                 return i.reply({ content: 'You do not have permission to use this.', flags: [64] });
             }
 
-            if (i.customId === 'setup_add') {
+            if (i.customId === 'setup_ping_role') {
+                const pingRoleId = await getPingRoleId(db, guildId);
+
+                const roleSelect = new RoleSelectMenuBuilder()
+                    .setCustomId('select_ping_role')
+                    .setPlaceholder('Select a role to ping for notifications')
+                    .setMinValues(1)
+                    .setMaxValues(1);
+
+                const row1 = new ActionRowBuilder().addComponents(roleSelect);
+                const row2 = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('back_to_dash')
+                        .setLabel('Back')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('clear_ping_role')
+                        .setLabel('Clear Ping Role')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('🔕')
+                        .setDisabled(!pingRoleId),
+                );
+
+                await i.update({
+                    content: '### 🔔 Ping Role\nChoose a role to mention when new free games are posted. Members can mute this role if they do not want pings.',
+                    embeds: [],
+                    components: [row1, row2],
+                });
+            }
+
+            else if (i.customId === 'select_ping_role') {
+                const roleId = i.values[0];
+
+                try {
+                    await db.run(
+                        `INSERT INTO guild_ping_roles (guild_id, ping_role_id)
+                         VALUES (?, ?)
+                         ON CONFLICT(guild_id) DO UPDATE SET
+                         ping_role_id = excluded.ping_role_id,
+                         updated_at = CURRENT_TIMESTAMP`,
+                        [guildId, roleId],
+                    );
+
+                    await redis.del(`guild:${guildId}`);
+
+                    const updatedDash = await renderDashboard();
+                    await i.update({
+                        content: `✅ Ping role set to <@&${roleId}>.`,
+                        ...updatedDash,
+                    });
+                } catch (error) {
+                    console.error('Error saving ping role:', error);
+                    await i.reply({ content: '❌ Failed to save ping role.', flags: [64] });
+                }
+            }
+
+            else if (i.customId === 'clear_ping_role') {
+                try {
+                    await db.run('DELETE FROM guild_ping_roles WHERE guild_id = ?', [guildId]);
+                    await redis.del(`guild:${guildId}`);
+
+                    const updatedDash = await renderDashboard();
+                    await i.update({
+                        content: '🔕 Ping role cleared.',
+                        ...updatedDash,
+                    });
+                } catch (error) {
+                    console.error('Error clearing ping role:', error);
+                    await i.reply({ content: '❌ Failed to clear ping role.', flags: [64] });
+                }
+            }
+
+            else if (i.customId === 'setup_add') {
                 selectedChannel = null;
                 selectedPlatform = null;
 
@@ -156,6 +241,7 @@ module.exports = {
 
                     if (games.length > 0) {
                         const channel = interaction.guild.channels.cache.get(selectedChannel);
+                        const pingRoleId = await getPingRoleId(db, guildId);
                         if (channel) {
                             for (const game of games) {
                                 const displayExpiry = game.expires_at ? `<t:${game.expires_at}:F> (<t:${game.expires_at}:R>)` : 'N/A';
@@ -179,7 +265,12 @@ module.exports = {
                                     );
                                     components.push(row);
                                 }
-                                await channel.send({ embeds: [embed], components }).catch(console.error);
+                                await channel.send({
+                                    content: formatPingContent(pingRoleId),
+                                    embeds: [embed],
+                                    components,
+                                    allowedMentions: pingAllowedMentions(pingRoleId),
+                                }).catch(console.error);
                             }
                         }
                     }
@@ -204,6 +295,7 @@ module.exports = {
             else if (i.customId === 'setup_remove_all') {
                 try {
                     await db.run('DELETE FROM guild_settings WHERE guild_id = ?', [guildId]);
+                    await db.run('DELETE FROM guild_ping_roles WHERE guild_id = ?', [guildId]);
 
                     // Invalidate Cache (Requirement 2)
                     await redis.del(`guild:${guildId}`);

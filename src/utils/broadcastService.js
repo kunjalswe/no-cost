@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { getDB } = require('../database');
 const { buildGameEmbed } = require('./embedBuilder');
+const { getPingRoleId, formatPingContent, pingAllowedMentions } = require('./guildSettings');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const STATE_FILE = path.join(__dirname, '../../broadcast_state.json');
@@ -154,15 +155,25 @@ class BroadcastService {
                         try {
                             // 2. Guild Settings Cache (Requirement 2)
                             const guildCacheKey = `guild:${guild_id}`;
-                            let guildConfigs = await redis.get(guildCacheKey);
-                            
-                            if (guildConfigs) {
+                            let cachedGuild = await redis.get(guildCacheKey);
+                            let guildConfigs;
+                            let pingRoleId;
+
+                            if (cachedGuild) {
                                 console.log(`[Redis] Guild settings HIT for ${guild_id}`);
+                                if (Array.isArray(cachedGuild)) {
+                                    guildConfigs = cachedGuild;
+                                    pingRoleId = await getPingRoleId(db, guild_id);
+                                } else {
+                                    guildConfigs = cachedGuild.configs;
+                                    pingRoleId = cachedGuild.pingRoleId ?? await getPingRoleId(db, guild_id);
+                                }
                             } else {
                                 console.log(`[Redis] Guild settings MISS for ${guild_id}. Fetching from DB...`);
                                 guildConfigs = await db.all('SELECT * FROM guild_settings WHERE guild_id = ?', [guild_id]);
+                                pingRoleId = await getPingRoleId(db, guild_id);
                                 if (guildConfigs && guildConfigs.length > 0) {
-                                    await redis.set(guildCacheKey, guildConfigs, 3600); // 60 min TTL
+                                    await redis.set(guildCacheKey, { configs: guildConfigs, pingRoleId }, 3600);
                                 }
                             }
 
@@ -208,7 +219,12 @@ class BroadcastService {
 
                                 if (!channel) continue;
 
-                                await channel.send({ embeds: [embed], components });
+                                await channel.send({
+                                    content: formatPingContent(pingRoleId),
+                                    embeds: [embed],
+                                    components,
+                                    allowedMentions: pingAllowedMentions(pingRoleId),
+                                });
                                 this.state.successCount++;
                                 sentGuildsInThisBroadcast.add(guild_id);
                             }

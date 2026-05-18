@@ -39,6 +39,13 @@ const MIGRATIONS = [
     SELECT guild_id, channel_id, platform, created_at FROM guild_settings;
     DROP TABLE guild_settings;
     ALTER TABLE guild_settings_v3 RENAME TO guild_settings;`,
+
+    // v4 — optional role to ping when posting game notifications
+    `CREATE TABLE IF NOT EXISTS guild_ping_roles (
+        guild_id     TEXT PRIMARY KEY,
+        ping_role_id TEXT NOT NULL,
+        updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`,
 ];
 
 async function runMigrations() {
