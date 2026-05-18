@@ -3,6 +3,8 @@ const { isAuthorized } = require('../utils/permissions');
 
 const INVITE_URL = 'https://discord.com/oauth2/authorize?client_id=1504853562801524856&scope=bot&permissions=137439266880';
 const SUPPORT_URL = 'https://discord.gg/yarZZ5zeNP';
+const TOPGG_VOTE_URL = 'https://top.gg/bot/1504853562801524856/vote';
+const DBL_VOTE_URL = 'https://discordbotlist.com/bots/no-cost/upvote';
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -26,7 +28,7 @@ module.exports = {
         // Public commands
         embed.addFields({
             name: '📢 Public Commands',
-            value: '`/free` - Browse active free games\n`/status` - Shows bot uptime and stats\n`/ping` - Check bot latency\n`/invite` - Get the bot invite & support server link\n`/help` - Shows this menu'
+            value: `\`/free\` - Browse active free games\n\`/status\` - Shows bot uptime and stats\n\`/ping\` - Check bot latency\n\`/invite\` - Get the bot invite & support server link\n\`/vote\` - Vote for No-Cost · [Top.gg](${TOPGG_VOTE_URL}) · [Discord Bot List](${DBL_VOTE_URL})\n\`/help\` - Shows this menu`
         });
 
         // Admin commands
