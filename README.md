@@ -1,4 +1,5 @@
 # No-Cost Bot
+# Bot deleted but code still in github
 
 > A locally hosted Discord bot that tracks and broadcasts **free game deals** from Steam & Epic Games to multiple servers simultaneously. Built with **Discord.js v14** and **SQLite**.
 
